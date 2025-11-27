@@ -1,0 +1,37 @@
+baseURL = "https://yosepjeon.github.io/"
+languageCode = "ko-kr"
+theme = "terminal"
+pagination.pagerSize = 5
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[params]
+  contentTypeName = "posts"
+  showMenuItems = 2
+  fullWidthTheme = false
+  centerTheme = false
+
+[languages]
+  [languages.ko]
+    title = "Yosep's Blog"
+    subtitle = "개발 블로그"
+    keywords = ""
+    copyright = ""
+    menuMore = "더보기"
+    readMore = "더 읽기"
+    readOtherPosts = "다른 글 읽기"
+
+    [languages.ko.params.logo]
+      logoText = "Yosep's Blog"
+      logoHomeLink = "/"
+
+    [languages.ko.menu]
+      [[languages.ko.menu.main]]
+        identifier = "about"
+        name = "About"
+        url = "/about"
+      [[languages.ko.menu.main]]
+        identifier = "posts"
+        name = "Posts"
+        url = "/posts"
