@@ -53,5 +53,9 @@
   {{ if not (.Params.hideComments | default false) }}
     {{ partial "comments.html" . }}
   {{ end }}
+
+  <div class="post-nav">
+    <a href="javascript:history.back()" class="button">&larr; 뒤로가기</a>
+  </div>
 </article>
 {{ end }}

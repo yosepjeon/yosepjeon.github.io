@@ -1,0 +1,65 @@
+{{ define "main" }}
+{{ if eq .Title "Books" }}
+  {{/* Books 목록 페이지 */}}
+  {{ with .Content }}
+    <div class="index-content">
+      {{ . }}
+    </div>
+  {{ end }}
+  <div class="posts">
+    {{ range where .Site.Pages "Section" "books" }}
+      {{ if and (eq .Kind "section") (ne .Title "Books") }}
+        <article class="post on-list">
+          <h2 class="post-title">
+            <a href="{{ .Permalink }}">{{ .Title }}</a>
+          </h2>
+          <div class="post-meta">
+            {{- if .Date -}}
+              <time class="post-date">
+                {{- partial "post-date" . -}}
+              </time>
+            {{- end -}}
+          </div>
+        </article>
+      {{ end }}
+    {{ end }}
+  </div>
+{{ else }}
+  {{/* 개별 책 상세 페이지 */}}
+  <article class="post">
+    <div class="post-nav">
+      <a href="javascript:history.back()" class="button">&larr; 뒤로가기</a>
+    </div>
+
+    <h1 class="post-title">{{ .Title }}</h1>
+
+    <!-- Book Cover Image -->
+    {{ $cover := .Resources.GetMatch "images/cover.*" }}
+    {{ if $cover }}
+    <div class="book-cover">
+      <img src="{{ $cover.RelPermalink }}" alt="{{ .Title }}">
+    </div>
+    {{ end }}
+
+    {{ with .Content }}
+      <div class="book-description">
+        {{ . }}
+      </div>
+    {{ end }}
+
+    <!-- Chapters List -->
+    {{ if .RegularPages }}
+    <div class="book-chapters">
+      <h2>Chapters</h2>
+      <ul class="home-list">
+        {{ range .RegularPages }}
+          <li>
+            <a href="{{ .Permalink }}">{{ .Title }}</a>
+          </li>
+        {{ end }}
+      </ul>
+    </div>
+    {{ end }}
+  </article>
+{{ end }}
+{{ end }}
