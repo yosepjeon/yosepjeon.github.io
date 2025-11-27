@@ -1,2 +1,6 @@
-/* Placeholder file for your custom settings. */
-/* You can get the color scheme variables from https://panr.github.io/terminal-css/ */
+/* Blue Screen of Death color scheme */
+:root {
+  --background: #0000AA;
+  --foreground: #FFFFFF;
+  --accent: #AAAAAA;
+}
