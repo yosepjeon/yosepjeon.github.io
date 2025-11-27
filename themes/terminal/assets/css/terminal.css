@@ -4,3 +4,13 @@
   --foreground: #FFFFFF;
   --accent: #AAAAAA;
 }
+
+/* JetBrains Mono font */
+body {
+  font-family: "JetBrains Mono", Monaco, Consolas, "Ubuntu Mono", monospace;
+}
+
+code,
+kbd {
+  font-family: "JetBrains Mono", Monaco, Consolas, "Ubuntu Mono", monospace !important;
+}
