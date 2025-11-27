@@ -1,5 +1,6 @@
 baseURL = "https://yosepjeon.github.io/"
 languageCode = "ko-kr"
+defaultContentLanguage = "ko"
 theme = "terminal"
 pagination.pagerSize = 5
 
