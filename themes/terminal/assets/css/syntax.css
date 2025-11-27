@@ -96,25 +96,44 @@
 /* LANGUAGE FIXES */
 /* PHP CommentPreproc */ .chroma .language-php .cp { color:var(--foreground) }
 
-/* YAML specific styles - black background */
-.highlight:has(code.language-yaml) {
+/* ALL CODE BLOCKS - black background with fluorescent green values */
+.highlight {
   background-color: #000000 !important;
 }
-.highlight:has(code.language-yaml) .chroma {
+.highlight .chroma {
   background-color: #000000 !important;
 }
-.highlight:has(code.language-yaml) .lntd {
+.highlight .lntd {
   background-color: #000000 !important;
 }
-.highlight:has(code.language-yaml) pre {
+.highlight pre {
   background-color: #000000 !important;
 }
-/* YAML values - fluorescent green */
-code.language-yaml .l { color: #39ff14 !important; }
-code.language-yaml .s { color: #39ff14 !important; }
-code.language-yaml .s1 { color: #39ff14 !important; }
-code.language-yaml .s2 { color: #39ff14 !important; }
-code.language-yaml .kc { color: #39ff14 !important; }
-code.language-yaml .m { color: #39ff14 !important; }
-code.language-yaml .mi { color: #39ff14 !important; }
-code.language-yaml .mf { color: #39ff14 !important; }
+.highlight .code-title {
+  background-color: #000000 !important;
+}
+
+/* Values - fluorescent green for all languages */
+.chroma .l { color: #39ff14 !important; }
+.chroma .s { color: #39ff14 !important; }
+.chroma .s1 { color: #39ff14 !important; }
+.chroma .s2 { color: #39ff14 !important; }
+.chroma .sa { color: #39ff14 !important; }
+.chroma .sb { color: #39ff14 !important; }
+.chroma .sc { color: #39ff14 !important; }
+.chroma .dl { color: #39ff14 !important; }
+.chroma .sd { color: #39ff14 !important; }
+.chroma .se { color: #39ff14 !important; }
+.chroma .sh { color: #39ff14 !important; }
+.chroma .si { color: #39ff14 !important; }
+.chroma .sx { color: #39ff14 !important; }
+.chroma .sr { color: #39ff14 !important; }
+.chroma .ss { color: #39ff14 !important; }
+.chroma .kc { color: #39ff14 !important; }
+.chroma .m { color: #39ff14 !important; }
+.chroma .mb { color: #39ff14 !important; }
+.chroma .mf { color: #39ff14 !important; }
+.chroma .mh { color: #39ff14 !important; }
+.chroma .mi { color: #39ff14 !important; }
+.chroma .il { color: #39ff14 !important; }
+.chroma .mo { color: #39ff14 !important; }

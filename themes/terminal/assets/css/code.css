@@ -126,10 +126,3 @@ code {
   line-height: 0;
 }
 
-/* YAML highlight block - black background */
-.highlight:has(.language-yaml) {
-  background-color: #000000;
-}
-.highlight:has(.language-yaml) .code-title {
-  background-color: #000000;
-}
