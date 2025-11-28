@@ -460,6 +460,7 @@ blockquote.twitter-tweet::before {
 .content {
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
 }
 
 .hidden {

@@ -1,11 +1,9 @@
 +++
-title = "Hello World"
+title = "안녕하세요!"
 date = "2025-11-27"
 author = "Yosep"
-cover = ""
 tags = ["blog", "first-post"]
 description = "첫 번째 블로그 포스트입니다."
-showFullContent = false
 +++
 
 # 안녕하세요!

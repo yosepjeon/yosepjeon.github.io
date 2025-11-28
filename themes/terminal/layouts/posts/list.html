@@ -1,14 +1,14 @@
 {{ define "main" }}
-{{ if eq .Title "Books" }}
-  {{/* Books 목록 페이지 */}}
+{{ if eq .Title "Posts" }}
+  {{/* Posts 목록 페이지 */}}
   {{ with .Content }}
     <div class="index-content">
       {{ . }}
     </div>
   {{ end }}
   <div class="posts">
-    {{ range where .Site.Pages "Section" "books" }}
-      {{ if and (eq .Kind "section") (ne .Title "Books") }}
+    {{ range where .Site.Pages "Section" "posts" }}
+      {{ if and (eq .Kind "section") (ne .Title "Posts") }}
         <article class="post on-list">
           <h2 class="post-title">
             <a href="{{ .Permalink }}">{{ .Title }}</a>
@@ -25,28 +25,20 @@
     {{ end }}
   </div>
 {{ else }}
-  {{/* 개별 책 상세 페이지 */}}
+  {{/* 개별 포스트 시리즈 상세 페이지 */}}
   <article class="post">
     <h1 class="post-title">{{ .Title }}</h1>
 
-    <!-- Book Cover Image -->
-    {{ $cover := .Resources.GetMatch "images/cover.*" }}
-    {{ if $cover }}
-    <div class="book-cover">
-      <img src="{{ $cover.RelPermalink }}" alt="{{ .Title }}">
-    </div>
-    {{ end }}
-
     {{ with .Content }}
-      <div class="book-description">
+      <div class="post-description">
         {{ . }}
       </div>
     {{ end }}
 
-    <!-- Chapters List -->
+    <!-- Posts List -->
     {{ if .RegularPages }}
-    <div class="book-chapters">
-      <h2>Chapters</h2>
+    <div class="post-chapters">
+      <h2>Posts</h2>
       <ul class="home-list">
         {{ range .RegularPages }}
           <li>

@@ -29,7 +29,7 @@ pagination.pagerSize = 5
     readOtherPosts = "다른 글 읽기"
 
     [languages.ko.params.logo]
-      logoText = "Yosep's Blog"
+      logoText = "Yosep's Tech 하이텔"
       logoHomeLink = "/"
 
     [languages.ko.menu]
