@@ -25,4 +25,3 @@ spec:
 ```
 
 
-app(ios) - SSE - A Server(20EA) - Kafka - B Server(20EA) - 대외기관
