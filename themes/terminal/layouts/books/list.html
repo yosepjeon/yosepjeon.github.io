@@ -48,7 +48,7 @@
     <div class="book-chapters">
       <h2>Chapters</h2>
       <ul class="home-list">
-        {{ range .RegularPages }}
+        {{ range .RegularPages.ByWeight }}
           <li>
             <a href="{{ .Permalink }}">{{ .Title }}</a>
           </li>
