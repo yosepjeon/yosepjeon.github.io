@@ -157,6 +157,30 @@ spec:
 
 ```
 
+```bash
+$ kubectl apply --filename chapter-06/replicaset.yaml --namespace default
+replicaset.apps/httpserver created
+```
+
+ReplicaSet은 동일한 pod를 복제하기 떄문에 pod의 이름에 임의의 접미사가 자동으로 붙습니다.  
+ReplicaSet의 이름이 httpserver인 경우 httpserver-xxx가 됩니다.
+
+```bash
+$ kubectl get pod --namespace default
+httpserver-2xfgb                1/1     Running   0          70s
+httpserver-cfqgh                1/1     Running   0          70s
+httpserver-gcvqw                1/1     Running   0          70s
+```
+  
+다음 명령으로 ReplicaSet 리소스를 조회할 수 있습니다.
+```bash
+$ kubectl get replicaset --namespace default
+* DESIRED: 몇 개의 POD가 생성돼야하는지
+NAME                      DESIRED   CURRENT   READY   AGE
+httpserver                3         3         3       5m53s
+```  
+  
+
 ## Deployment
 
 Deployment는 ReplicaSet을 관리하며, 롤링 업데이트와 롤백 기능을 제공합니다.
