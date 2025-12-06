@@ -340,8 +340,9 @@ sup {
 }
 
 mark {
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
-  color: var(--foreground);
+  background: #000000;
+  color: #39FF14; /* 형광 녹색 */
+  padding: 2px 4px;
 }
 
 blockquote {

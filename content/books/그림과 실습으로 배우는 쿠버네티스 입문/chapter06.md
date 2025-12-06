@@ -97,10 +97,10 @@ weight = 6
 
 ```bash
 # Phase 확인
-kubectl get pod <name> -o jsonpath='{.status.phase}'
+$ kubectl get pod <name> -o jsonpath='{.status.phase}'
 
 # 전체 상태 확인
-kubectl describe pod <name>
+$ kubectl describe pod <name>
 ```
 
 
@@ -390,7 +390,7 @@ nginx-deployment-576c6b7b6    3         3         3       45s     # 신규 (1.25
 Deployment의 매니페스트를 출력해보면, StrategyType과 RollingUpdate 설정이 보입니다.
 
 ```bash
-$kubectl describe deployment nginx-deployment
+$ kubectl describe deployment nginx-deployment
 Name:                   nginx-deployment
 Namespace:              default
 CreationTimestamp:      Fri, 05 Dec 2025 11:27:51 +0900
@@ -469,7 +469,7 @@ spec:
     # ... 생략
 ```
 
-**maxSurge**: 업데이트 중 replicas 수를 초과하여 생성할 수 있는 최대 Pod 수
+**maxSurge**: 업데이트 중 replicas 수를 초과하여 생성할 수 있는 최대 Pod 수  
 **maxUnavailable**: 업데이트 중 사용 불가능한 상태로 둘 수 있는 최대 Pod 수
 
 ```
@@ -658,4 +658,101 @@ spec:
     └────────────────┴─────────────────────┴─────────────────────┘
 ```
 
+## 실습
+Recreate 매니패스트를 작성하고 적용합니다.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec:
+  replicas: 10
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.24.0
+        ports:
+        - containerPort: 80
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
 
+```
+
+```bash
+$ kubectl apply --filename deployment-recreate.yaml --namespace default
+deployment.apps/nginx-deployment created
+```
+
+pod가 정상적으로 생성되었는지 확인합니다.
+
+```bash
+$ kubectl get pod --namespace default
+NAME                               READY   STATUS    RESTARTS   AGE
+nginx-deployment-bbf758c66-5d55w   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-6lc65   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-dfm6h   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-f5hvt   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-fg85x   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-hnbm5   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-m9qqn   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-mfkwh   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-tklng   1/1     Running   0          4m51s
+nginx-deployment-bbf758c66-vvvs8   1/1     Running   0          4m51s
+```
+
+<mark>kubectl get pod --watch</mark>를 실행해서 관찰합니다.  
+<mark>--watch</mark> 옵션을 붙이면 <mark>kubectl get pod</mark>의 결과를 계속해서 모니터링할 수 있습니다.
+
+이제 image를 nginx:1.25.3으로 변경합니다.
+
+```bash
+kubectl get pod --watch --namespace default
+NAME                               READY   STATUS               RESTARTS   AGE
+nginx-deployment-bbf758c66-5d55w   1/1     Running              0          72m
+nginx-deployment-bbf758c66-6lc65   1/1     Running              0          72m
+nginx-deployment-bbf758c66-dfm6h   1/1     Running              0          72m
+...
+nginx-deployment-bbf758c66-f5hvt   1/1     Terminating          0          72m
+nginx-deployment-bbf758c66-fg85x   1/1     Terminating          0          72m
+nginx-deployment-bbf758c66-vvvs8   1/1     Terminating          0          72m
+...
+nginx-deployment-6f4857f9c6-5k2mw   0/1     Pending             0          0s
+nginx-deployment-6f4857f9c6-c88j4   0/1     Pending             0          0s
+nginx-deployment-6f4857f9c6-285f9   0/1     Pending             0          0s
+nginx-deployment-6f4857f9c6-p9jcz   0/1     Pending             0          0s
+...
+nginx-deployment-6f4857f9c6-c88j4   0/1     ContainerCreating   0          0s
+nginx-deployment-6f4857f9c6-285f9   0/1     ContainerCreating   0          0s
+nginx-deployment-6f4857f9c6-pgmdg   0/1     ContainerCreating   0          0s
+...
+nginx-deployment-bbf758c66-5d55w    0/1     Completed           0          72m
+nginx-deployment-bbf758c66-5d55w    0/1     Completed           0          72m
+nginx-deployment-bbf758c66-mfkwh    0/1     Completed           0          72m
+...
+nginx-deployment-6f4857f9c6-pgmdg   1/1     Running             0          8s
+nginx-deployment-6f4857f9c6-9fwxw   1/1     Running             0          10s
+nginx-deployment-6f4857f9c6-c88j4   1/1     Running             0          11s
+...
+```
+
+pod가 Terminating -> ContainerCreating -> Running으로 전환되는것을 확인할 수 있습니다.
+  
+이제 strategy를 RollingUpdate로 바꾸겠습니다.
+
+```bash
+$ kubectl apply --filename deployment-rollingupdate.yaml --namespace default
+deployment.apps/nginx-deployment created
+```
