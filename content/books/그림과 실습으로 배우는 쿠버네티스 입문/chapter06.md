@@ -762,4 +762,179 @@ max surge가 100%면 기존 pod의 수와 동일한 수의 새로운 pod를 생�
 max surge 100%는 pod를 가장 빠르고 안전하게 업데이트하는 방법입니다.  
 하지만 필요한 리소스가 일시적으로 두 배로 늘어나기 때문에 가용 리소스가 충분한지 미리 확인해야 합니다.
 
+관련 파드를 삭제함으로 테스트를 완료합니다.
+```bash
+$ kubectl delete --filename deployment-rollingupdate.yaml --namespace default
+```
+
 ## 6.2.3 Deployment를 만들고 망가뜨리기
+```bash
+$ kubectl apply --filename deployment-hello-server.yaml --namespace default
+deployment.apps/hello-server created
+
+$ kubectl get pod --namespace default
+NAME                            READY   STATUS    RESTARTS   AGE
+hello-server-84d5bd575b-5zmfj   1/1     Running   0          48s
+hello-server-84d5bd575b-8lx5s   1/1     Running   0          48s
+hello-server-84d5bd575b-vxhqc   1/1     Running   0          48s
+```
+
+먼저 pod를 삭제하면 어떻게 되는지 확인해 보겠습니다.
+
+```bash
+$ kubectl delete pod hello-server-84d5bd575b-5zmfj --namespace default 
+pod "hello-server-84d5bd575b-5zmfj" deleted from default namespace
+$ chapter-06 % kubectl get pod --namespace default                                 
+NAME                            READY   STATUS    RESTARTS   AGE
+hello-server-84d5bd575b-plzn6   1/1     Running   0          2s
+hello-server-84d5bd575b-8lx5s   1/1     Running   0          6h35m
+hello-server-84d5bd575b-vxhqc   1/1     Running   0          6h35m
+```
+
+하나의 pod만 AGE가 짧은 것이 보입니다. 삭제된 pod를 대신해 새로운 pod가 만들어졌습니다.  
+Deployment를 사용하면 pod가 지워지더라도 지정한 개수에 맞게 쿠버네티스가 자동으로 다시 생성합니다.  
+  
+이제 Deplyment를 RollingUpdate를 해보겠습니다. 먼저 현재 서버가 문제없이 동작하는지 확인합니다.
+```bash
+$ kubectl port-forward deployment/hello-server 8080:8080
+Forwarding from 127.0.0.1:8080 -> 8080
+Forwarding from [::1]:8080 -> 8080
+
+$ curl localhost:8080
+Hello, world!%             
+```
+  
+그다음 매니페스트를 적용하여 RollingUpdate를 진행합니다.
+```bash
+$ kubectl apply --filename deployment-hello-server-rollingupdate.yaml --namespace default
+deployment.apps/hello-server configured
+
+$ kubectl get pod --namespace default
+NAME                            READY   STATUS         RESTARTS   AGE
+hello-server-84cc6c9ccf-tvvr4   0/1     ErrImagePull   0          34s
+hello-server-84d5bd575b-8lx5s   1/1     Running        0          6h46m
+hello-server-84d5bd575b-plzn6   1/1     Running        0          10m
+hello-server-84d5bd575b-vxhqc   1/1     Running        0          6h46m
+```
+
+pod가 하나 늘어났지만 오류가 발생한 것을 알 수 있습니다. 애플리케이션이 동작하지 않는 것은 아닙니다.
+fortforward 상태로 curl 명령어를 호출하면 정상동작합니다.
+
+```bash
+$ kubectl get deployment --namespace default
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+hello-server   3/3     1            3           6h49m
+```
+
+UP-TO-DATE가 1입니다. 오래된 버전의 pod는 그대로 두고, 새로운 버전의 pod를 1개 생성하던 중 오류가 발생했음을 알 수 있습니다.
+기본 설정 maxUnavailable: 25%, maxSurge: 25%일 때 pod의 개수 3의 25%는 0.75입니다.
+소수점일떄 maxUnavailable은 내림, maxSurge는 올림을 적용합니다.
+따라서 여기서는 maxUnavailable: 0, maxSurge: 1입니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Rolling Update 전략 (Pod 3개)                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   기본 설정: maxUnavailable: 25%, maxSurge: 25%                       │
+│                                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │  3 × 25% = 0.75                                             │   │
+│   │                                                             │   │
+│   │  • maxUnavailable: 0.75 → 0 (내림)  → 최소 3개 유지 필요         │   │
+│   │  • maxSurge:       0.75 → 1 (올림)  → 최대 4개까지 허용          │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                         업데이트 과정                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   [초기 상태] READY: 3, UP-TO-DATE: 3                                 │
+│   ┌───────┐  ┌───────┐  ┌───────┐                                   │
+│   │ Pod 1 │  │ Pod 2 │  │ Pod 3 │                                   │
+│   │  v1   │  │  v1   │  │  v1   │                                   │
+│   │  ✓    │  │  ✓    │  │  ✓    │                                   │
+│   └───────┘  └───────┘  └───────┘                                   │
+│                                                                     │
+│                          ↓ 업데이트 시작                               │
+│                                                                     │
+│   [업데이트 중] READY: 3, UP-TO-DATE: 1                                │
+│   ┌───────┐  ┌───────┐  ┌───────┐  ┌───────┐                        │
+│   │ Pod 1 │  │ Pod 2 │  │ Pod 3 │  │ Pod 4 │  ← maxSurge: 1         │
+│   │  v1   │  │  v1   │  │  v1   │  │  v2   │    (새 버전 1개 추가)     │
+│   │  ✓    │  │  ✓    │  │  ✓    │  │  ⚠️   │    (생성 중/오류)         │
+│   └───────┘  └───────┘  └───────┘  └───────┘                        │
+│                                                                     │
+│   ※ maxUnavailable: 0 이므로 기존 Pod를 삭제할 수 없음                     │
+│   ※ 새 Pod가 Ready 상태가 되어야 기존 Pod 삭제 가능                         │
+│                                                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                         오류 발생 시                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   새 Pod(v2)가 Ready 상태가 되지 않으면:                                  │
+│   • 기존 v1 Pod 3개는 계속 서비스 유지 (maxUnavailable: 0)                │
+│   • 새 v2 Pod는 오류 상태로 대기                                         │
+│   • 롤아웃이 중단된 상태로 유지                                            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+애플리케이션이 정상적으로 동작하는 것은 이전 버전의 pod가 그대로 남아 있기 때문입니다.
+```bash
+$ kubectl get replicaset --namespace default
+NAME                      DESIRED   CURRENT   READY   AGE
+hello-server-84cc6c9ccf   1         1         0       6h58m
+hello-server-84d5bd575b   3         3         3       13h
+```
+
+그럼 이제 RollingUpdate를 고쳐 보겠습니다. STATUS가 ErrImagePull인데 상세 내용을 확인하겠습니다.
+```bash
+$ kubectl describe pod hello-server-84cc6c9ccf --namespace default
+Name:             hello-server-84cc6c9ccf-tvvr4
+Namespace:        default
+Priority:         0
+Service Account:  default
+Node:             kind-control-plane/172.24.0.2
+Start Time:       Tue, 09 Dec 2025 00:04:09 +0900
+Labels:           app=hello-server
+                  pod-template-hash=84cc6c9ccf
+
+...
+
+
+Events:
+  Type     Reason   Age                 From     Message
+  ----     ------   ----                ----     -------
+  Normal   BackOff  57s (x419 over 7h)  kubelet  Back-off pulling image "blux2/hello-server:1.3"
+  Warning  Failed   57s (x419 over 7h)  kubelet  Error: ImagePullBackOff
+```
+hello-server:1.3을 찾을 수 없다고 출력되었습니다. 따라서 1.2태그를 사용하도록 수정합니다.
+
+```bash
+$ kubectl edit deployment hello-server --namespace default
+deployment.apps/hello-server edited
+
+$ kubectl get pod,replicaset --namespace default
+NAME                                READY   STATUS    RESTARTS   AGE
+pod/hello-server-77665655cd-2l5pt   1/1     Running   0          19s
+pod/hello-server-77665655cd-bjvql   1/1     Running   0          11s
+pod/hello-server-77665655cd-wpzqv   1/1     Running   0          12s
+
+NAME                                      DESIRED   CURRENT   READY   AGE
+replicaset.apps/hello-server-77665655cd   3         3         3       19s
+replicaset.apps/hello-server-84cc6c9ccf   0         0         0       7h5m
+replicaset.apps/hello-server-84d5bd575b   0         0         0       13h
+
+$ kubectl port-forward hello-server 8080:8080 --namespace default
+Forwarding from 127.0.0.1:8080 -> 8080
+Forwarding from [::1]:8080 -> 8080
+
+별도의 터미널에서 수행
+$ curl localhost:8080
+Hello, world! Let's learn Kubernetes!
+
+실습 정리
+$ kubectl delete --filename deployment-hello-server-rollingupdate.yaml
+deployment.apps "hello-server" deleted from default namespace
+```
