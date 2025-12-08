@@ -109,7 +109,7 @@ $ kubectl describe pod <name>
 하지만, Pod만으로는 컨테이너 다중화가 불가능하기 때문에 실제 운영 환경에서는 권장하지 않습니다.
 그래서 Deployment라는 리소스를 사용합니다.
 
-## ReplicaSet
+## 6.2.1 ReplicaSet
 
 ReplicaSet은 지정된 수의 Pod를 복제하는 리소스이며, 복제본이 항상 실행되도록 보장합니다.
 
@@ -181,7 +181,7 @@ httpserver                3         3         3       5m53s
 ```  
   
 
-## Deployment
+## 6.2.2 Deployment
 
 Deployment는 ReplicaSet을 관리하며, 롤링 업데이트와 롤백 기능을 제공합니다.
 
@@ -756,3 +756,10 @@ pod가 Terminating -> ContainerCreating -> Running으로 전환되는것을 확�
 $ kubectl apply --filename deployment-rollingupdate.yaml --namespace default
 deployment.apps/nginx-deployment created
 ```
+
+업데이트가 진행되면서 pod의 수가 두 배로 늘어나는 것을 볼 수 있습니다.  
+max surge가 100%면 기존 pod의 수와 동일한 수의 새로운 pod를 생성합니다.  
+max surge 100%는 pod를 가장 빠르고 안전하게 업데이트하는 방법입니다.  
+하지만 필요한 리소스가 일시적으로 두 배로 늘어나기 때문에 가용 리소스가 충분한지 미리 확인해야 합니다.
+
+## 6.2.3 Deployment를 만들고 망가뜨리기
