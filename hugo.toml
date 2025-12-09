@@ -3,6 +3,7 @@ languageCode = "ko-kr"
 defaultContentLanguage = "ko"
 theme = "terminal"
 pagination.pagerSize = 5
+buildFuture = true
 
 [markup.goldmark.renderer]
   unsafe = true
