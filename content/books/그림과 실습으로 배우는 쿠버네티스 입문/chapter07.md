@@ -477,39 +477,420 @@ deployment.apps/hello-server created
 
 $ kubectl get pod --namespace default
 NAME                            READY   STATUS              RESTARTS   AGE
-hello-server-54577b6988-4wzx8   1/2     ContainerCreating   0          25s
-hello-server-54577b6988-7p94h   1/2     ContainerCreating   0          25s
-hello-server-54577b6988-nnkq5   1/2     ContainerCreating   0          25s
+kubectl get pod --namespace default
+NAME                            READY   STATUS              RESTARTS   AGE
+hello-server-54577b6988-4j4r5   0/2     ContainerCreating   0          12s
+hello-server-54577b6988-g6hj5   0/2     ContainerCreating   0          12s
+hello-server-54577b6988-rjrzn   0/2     ContainerCreating   0          12s
 
 // 컨테이너의 STATUS가 Running으로 문제가 없어 보이지만 READY가 1/2입니다.
-//  잠시 . 다시 상태를 확인합니다.
+//  잠시 뒤 다시 상태를 확인합니다. 너무 오래 걸리고 있습니다.
 $ kubectl get pod --namespace default
-hello-server-54577b6988-4wzx8   0/2     ContainerCreating   0          44s
-hello-server-54577b6988-7p94h   0/2     ContainerCreating   0          44s
-hello-server-54577b6988-nnkq5   0/2     ContainerCreating   0          44s
+kubectl get pod --namespace default
+NAME                            READY   STATUS              RESTARTS   AGE
+hello-server-54577b6988-4j4r5   0/2     ContainerCreating   0          42s
+hello-server-54577b6988-g6hj5   0/2     ContainerCreating   0          42s
+hello-server-54577b6988-rjrzn   0/2     ContainerCreating   0          42s
 
-$ kubectl describe pod hello-server-54577b6988-4wzx8 --namespace default
-Name:             hello-server-54577b6988-4wzx8
+// 임의의 pod의 이름을 하나 복사하여 다음 명령어를 실행합니다.
+$ kubectl describe pod hello-server-54577b6988-4j4r5 --namespace default
+Name:             hello-server-54577b6988-4j4r5
 Namespace:        default
 Priority:         0
-...
+Service Account:  default
+Node:             kind-control-plane/172.24.0.2
+Start Time:       Thu, 11 Dec 2025 21:40:33 +0900
+... 생략
 Containers:
   hello-server:
-    Container ID:   
+    Container ID:   containerd://2252edef903c5a7058bc64f6c6ff0da2ba9b1ee287d03ba865134f799d5d9c5c
     Image:          blux2/hello-server:1.6
-    Image ID:       
+    Image ID:       docker.io/blux2/hello-server@sha256:035c114efa5478a148e5aedd4e2209bcc46a6d9eff3ef24e9dba9fa147a6568d
     Port:           8080/TCP
     Host Port:      0/TCP
-    State:          Waiting
-      Reason:       ImagePullBackOff
-    Ready:          False
-    Restart Count:  0
-    Liveness:       http-get http://:8080/health delay=10s timeout=1s period=5s #success=1 #failure=3
-    Readiness:      http-get http://:8081/health delay=5s timeout=1s period=5s #success=1 #failure=3
-    Environment:    <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-s6zs6 (ro)
-...
+    State:          Running
+      Started:      Thu, 11 Dec 2025 21:40:39 +0900
+    Ready:          False <------- (1)
+... 생략
+  busybox:
+    Container ID:  containerd://538d82f209a04e49e97aad83e2790f5acaacf957b159bb31000f7fea3da09bca
+    Image:         busybox:1.36.1
+    Image ID:      docker.io/library/busybox@sha256:6b219909078e3fc93b81f83cb438bd7a5457984a01a478c76fe9777a8c67c39e
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      sleep
+      9999
+    State:          Running
+      Started:      Thu, 11 Dec 2025 21:40:48 +0900
+    Ready:          True <------- (2)
+... 생략
+Events:
+  Type     Reason     Age                 From               Message
+  ----     ------     ----                ----               -------
+  Normal   Scheduled  2m14s               default-scheduler  Successfully assigned default/hello-server-54577b6988-4j4r5 to kind-control-plane
+  Normal   Pulling    2m14s               kubelet            Pulling image "blux2/hello-server:1.6"
+  Normal   Pulled     2m8s                kubelet            Successfully pulled image "blux2/hello-server:1.6" in 1.536s (6.091s including waiting). Image size: 3650825 bytes.
+  Normal   Created    2m8s                kubelet            Created container: hello-server
+  Normal   Started    2m8s                kubelet            Started container hello-server
+  Normal   Pulling    2m8s                kubelet            Pulling image "busybox:1.36.1"
+  Normal   Pulled     2m                  kubelet            Successfully pulled image "busybox:1.36.1" in 1.454s (8.074s including waiting). Image size: 1909538 bytes.
+  Normal   Created    2m                  kubelet            Created container: busybox
+  Normal   Started    119s                kubelet            Started container busybox
+  Warning  Unhealthy  6s (x25 over 118s)  kubelet            Readiness probe failed: Get "http://10.244.0.44:8081/health": dial tcp 10.244.0.44:8081: connect: connection refused <----- (3)
+```
+(1) hello-server State: Running, Ready: False
+(2) busybox는 State: Running, Ready: True
+(3) Readiness probe가 실패하고 있다고 출력되고 있습니다.
 
+즉 (1) hello-server에서 실패하고 있음을 알 수 있습니다.
+
+이제 Readiness probe의 설정 내용을 살펴보겠습니다.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-server
+  labels:
+    app: hello-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hello-server
+  template:
+    metadata:
+      labels:
+        app: hello-server
+    spec:
+      containers:
+      - name: hello-server
+        image: blux2/hello-server:1.6
+        ports:
+        - containerPort: 8080 <-- (1)
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8081 <-- (2)
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080 <-- (3)
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      - name: busybox
+        image: busybox:1.36.1
+        command:
+        - sleep
+        - "9999"
+```
+
+(1) 컨테이너의 포트와 (2)의 포트가 다른 것만으로는 문제가 되지 않습니다.  
+그런데 (3)의 포트와 컨테이너의 포트는 동일한데 (2)의 포트만 다른것이 수상합니다.
+
+```bash
+$ kubectl logs hello-server-54577b6988-4j4r5 --namespace default
+Defaulted container "hello-server" out of: hello-server, busybox
+2025/12/11 12:40:39 Starting server on port 8080
+2025/12/11 12:40:53 Health Status OK
+2025/12/11 12:40:58 Health Status OK
+...
+```
+
+(3)인 Liveness probe의 동작은 정상으로 확인이 됩니다. 따라서 Readiness probe의 포트 번호가 잘못되었을 가능성이 높아 보입니다.
+
+hello서버의 구현코드를 살펴보면, 환경 변수 PORT가 설정되어 있으면 설정된 값을 사용하고, 설정되어 있지 않으면 8080번을 사용하도록 되어있습니다.
+```go
+port := os.Getenv("PORT")
+if port == "" {
+    port = "8080"
+}
+```
+위 매니패스트에서는 환경 변수로 PORT를 지정하지 않았습니다. 따라서 포트번호는 8080입니다.  
+Readiness probe에서 지정한 포트번호 8081이 잘못된 것으로 판단할 수 있습니다.  
+8081을 8080으로 수정한뒤 다시 실행해보겠습니다.
+
+```bash
+$ kubectl edit deployment --namespace default
+deployment.apps/hello-server edited
+
+$ kubectl get pod --namespace default
+NAME                            READY   STATUS    RESTARTS   AGE
+hello-server-5fd8bd6855-gw4g4   2/2     Running   0          92s
+hello-server-5fd8bd6855-przn9   2/2     Running   0          85s
+hello-server-5fd8bd6855-zmxcj   2/2     Running   0          99s
+
+$ kubectl delete --filename deployment-destruction.yaml --namespace default
+deployment.apps "hello-server" deleted from default namespace
+```
+정상작동합니다.
+
+# 7.2 애플리케이션에 적절한 리소스 지정하기
+안전한 운영을 위해서는 애플리케이션에 적절한 리소스를 지정하는 것이 중요합니다.  
+쿠버네티스에서는 리소스 지정에 따라 스케줄링이 달라지기 때문에 반드시 명시적으로 지정해야 합니다.  
+매니페스트입니다.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: hello-server
+  name: hello-server
+spec:
+  containers:
+  - name: hello-server
+    image: blux2/hello-server:1.6
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "10m"
+      limits:
+        memory: "64Mi"
+        cpu: "10m"
+```
+
+## 7.2.1 Resource requests로 컨테이너의 리소스 사용량 요구하기
+확보하고 싶은 리소스의 최소 사용량을 지정합니다. 쿠버네티스의 스케줄러는 이 값을 보고 스케줄링할 노드를 결정합니다.
+ requests로 지정한 값을 확보할 수 있는 노드를 찾아 스케줄링하는데 그러한 노드를 찾을 수 없으면 pod는 스케줄링되지 않습니다.
+ 컨테이너별로 CPU와 메모리의 requests를 지정할 수 있습니다.
+
+```yaml
+...
+spec:
+  containers:
+    - name: hello-server
+      image: blux2/hello-server:1.6
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "10m"
+...
+```
+
+## 7.2.2 Resource limits로 컨테이너의 리소스 사용량 제어하기  
+컨테이너가 사용할 수 있는 리소스 사용량의 상한을 지정합니다. 컨테이너는 이 limits를 초과하여 리소스를 사용할 수 없습니다. 
+메모리가 상한값을 초과하는 경우, Out Of Memory(OOM)로 pod가 종료됩니다.  
+CPU가 상한값을 초과한 경우에는 pod가 바로 종료되지 않습니다.  
+대신 스로틀링이 발생하여 애플리케이션의 동작이 느려집니다.
+
+```yaml
+...
+spec:
+  containers:
+    - name: hello-server
+      image: blux2/hello-server:1.6
+      resources:
+        limits:
+          memory: "64Mi"
+          cpu: "10m"
+...
+```
+
+## 7.2.3 리소스의 단위
+* 메모리
+단위를 지정하지 않으면 1byte입니다. 그리고 기본적인 단위로 K(킬로), M(메가) 등을 붙일 수 있습니다.
+
+* CPU
+단위를 지정하지 않으면 1은 1코어를 의미합니다. 그리고 단위를 지정한 1m = 0.001코어를 의미합니다.
+
+## 7.2.4 pod의 Quality of Service(QoS) 클래스
+OOM Killer란 노드의 메모리가 전부 소진되었을 때 해당 노드에 있는 모든 컨테이너가 멈춰 버리는 것을 방지하기 위한 프로그램입니다.
+OOM Killer는 QoS에 따라 pod의 우선순위를 정하고 우선순위가 낮은 pod부터 OOM Kill을 수행합니다.
+
+### QoS 클래스의 종류
+
+쿠버네티스는 리소스 설정에 따라 자동으로 Pod에 QoS 클래스를 할당합니다.
 
 ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         QoS 클래스 우선순위                                    │
+│                                                                             │
+│   높음 ◀────────────────── 우선순위 ──────────────────▶ 낮음                  │
+│                                                                             │
+│   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                │
+│   │ Guaranteed  │      │  Burstable  │      │ BestEffort  │                │
+│   │             │      │             │      │             │                │
+│   │  가장 마지막에 │      │  두 번째로   │      │  가장 먼저   │                 │
+│   │  OOM Kill   │      │  OOM Kill   │      │  OOM Kill   │                 │
+│   └─────────────┘      └─────────────┘      └─────────────┘                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Guaranteed (보장됨)
+pod의 모든 컨테이너에 대해 리소스의 requests와 limit가 지정되어 있고, 메모리와 CPU 전부 requests=limits인 경우로, 
+가장 높은 우선순위를 가지며, OOM Kill 대상에서 가장 마지막에 선택됩니다.
+
+**조건:**
+- 모든 컨테이너에 CPU와 메모리의 requests와 limits가 설정되어 있어야 함
+- requests와 limits 값이 동일해야 함
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: guaranteed-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "500m"
+      limits:
+        memory: "128Mi"    # requests와 동일
+        cpu: "500m"        # requests와 동일
+```
+
+### 2. Burstable (버스트 가능)
+pod의 컨테이너 중 적어도 하나는 메모리 또는 CPU의 requests와 limits가 지정되어있는 경우로, 
+중간 우선순위를 가집니다. requests보다 더 많은 리소스를 사용할 수 있지만, limits를 초과할 수 없습니다.
+
+**조건:**
+- Guaranteed 조건을 충족하지 않음
+- 최소 하나의 컨테이너에 CPU 또는 메모리의 requests나 limits가 설정되어 있음
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: burstable-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"    # requests보다 높음
+        cpu: "500m"        # requests보다 높음
+```
+
+### 3. BestEffort (최선 노력)
+Guaranteed나 Burstable이 아닌것을 의미하고 리소스에 아무것도 지정되어 있지 않은 경우로, 
+가장 낮은 우선순위를 가지며, OOM Kill 대상에서 가장 먼저 선택됩니다.
+
+**조건:**
+- 어떤 컨테이너에도 CPU나 메모리의 requests/limits가 설정되어 있지 않음
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: besteffort-pod
+spec:
+  containers:
+  - name: app
+    image: nginx
+    # resources 설정 없음
+```
+
+### QoS 클래스 결정 흐름도
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          QoS 클래스 결정 흐름                                  │
+│                                                                             │
+│   Pod 생성                                                                   │
+│      │                                                                      │
+│      ▼                                                                      │
+│   ┌──────────────────────────────────────────┐                              │
+│   │ 모든 컨테이너에 requests와 limits가         │                              │
+│   │ 설정되어 있고, 값이 동일한가?                │                              │
+│   └──────────────────┬───────────────────────┘                              │
+│                      │                                                      │
+│          ┌───────────┴───────────┐                                          │
+│          │                       │                                          │
+│        Yes                      No                                          │
+│          │                       │                                          │
+│          ▼                       ▼                                          │
+│   ┌─────────────┐    ┌──────────────────────────────────┐                   │
+│   │ Guaranteed  │    │ 최소 하나의 컨테이너에              │                   │
+│   └─────────────┘    │ requests 또는 limits가 설정되어 있는가? │                   │
+│                      └──────────────────┬───────────────┘                   │
+│                                         │                                   │
+│                          ┌──────────────┴──────────────┐                    │
+│                          │                             │                    │
+│                        Yes                            No                    │
+│                          │                             │                    │
+│                          ▼                             ▼                    │
+│                   ┌─────────────┐               ┌─────────────┐             │
+│                   │  Burstable  │               │ BestEffort  │             │
+│                   └─────────────┘               └─────────────┘             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### QoS 클래스 확인 방법
+
+```bash
+# Pod의 QoS 클래스 확인
+$ kubectl get pod <pod-name> -o jsonpath='{.status.qosClass}'
+
+# 또는 describe로 확인
+$ kubectl describe pod <pod-name> | grep "QoS Class"
+```
+
+### QoS 클래스별 OOM Kill 동작
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     노드 메모리 부족 시 OOM Kill 순서                            │
+│                                                                             │
+│   노드 메모리 사용량: 100% (부족!)                                               │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                          OOM Kill 순서                               │   │
+│   │                                                                     │   │
+│   │  1순위    ┌─────────────┐                                           │   │
+│   │  (먼저)   │ BestEffort  │  → 리소스 설정 없음, 가장 먼저 종료            │   │
+│   │          └─────────────┘                                           │   │
+│   │              │                                                      │   │
+│   │              ▼  메모리 여전히 부족하면                                  │   │
+│   │  2순위    ┌─────────────┐                                           │   │
+│   │          │  Burstable  │  → requests 초과 사용량이 큰 Pod부터 종료      │   │
+│   │          └─────────────┘                                           │   │
+│   │              │                                                      │   │
+│   │              ▼  메모리 여전히 부족하면                                  │   │
+│   │  3순위    ┌─────────────┐                                           │   │
+│   │  (마지막) │ Guaranteed  │  → 최후의 수단으로만 종료                      │   │
+│   │          └─────────────┘                                           │   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### QoS 클래스 선택 가이드
+
+| 워크로드 유형 | 권장 QoS | 이유 |
+|-------------|----------|------|
+| **프로덕션 핵심 서비스** | Guaranteed | 안정성이 가장 중요, OOM Kill 방지 |
+| **일반 웹 애플리케이션** | Burstable | 트래픽 변동에 유연하게 대응 |
+| **배치 작업, 개발/테스트** | BestEffort | 리소스 효율성 우선, 종료되어도 무방 |
+
+### 주의사항
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ⚠️ QoS 설정 시 주의사항                               │
+│                                                                             │
+│  1. limits만 설정하면 requests는 자동으로 limits와 동일하게 설정됨                   │
+│     → limits만 설정해도 Guaranteed가 될 수 있음                                 │
+│                                                                             │
+│  2. BestEffort Pod는 노드의 여유 리소스를 모두 사용할 수 있음                       │
+│     → 다른 Pod에 영향을 줄 수 있으므로 프로덕션에서는 권장하지 않음                    │
+│                                                                             │
+│  3. Burstable Pod 간의 OOM Kill 순서는 requests 대비 실제 사용량 비율로 결정        │
+│     → requests를 초과한 비율이 높을수록 먼저 종료됨                                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 7.2.5 망가뜨리기 또 pod가 고장났다
