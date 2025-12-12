@@ -894,3 +894,89 @@ $ kubectl describe pod <pod-name> | grep "QoS Class"
 ```
 
 ## 7.2.5 망가뜨리기 또 pod가 고장났다
+리소스 설정으로 인해 pod가 동작하지 않는 경우가 자주 있습니다.  
+운영에서 빠르게 원인을 파악할 . 있는 몇 가지 패턴을 재현해보겠습니다.
+
+```bash
+$ kubectl apply --filename deployment-resource-handson.yaml --namespace default
+deployment.apps/hello-server configured
+
+// 아무리 기다려봐도 pod가 전부 작동하지는 않습니다.
+$ kubectl get pod --namespace default
+NAME                            READY   STATUS             RESTARTS   AGE
+hello-server-54577b6988-4wzx8   0/1     Pending   0          15h
+hello-server-54577b6988-7p94h   0/1     Pending   0          15h
+hello-server-54577b6988-nnkq5   0/1     Pending   0          15h
+
+// pod의 상세 정보를 살펴보겠습니다.
+$ kubectl describe pod hello-server-54577b6988-4wzx8 --namespace default
+Name: hello-server-54577b6988-4wzx8
+... 생략
+Warning FailedScheduling  15h (x4 over 15h)  default-scheduler  0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.. <-- (1)
+
+// (1) FailedScheduling이라고 출력되었습니다. 요구한 메모리 양을 할당할 . 있는 노드가 없다는 메시지입니다.
+// 노드 설정을 확인해봅니다.
+$ kubectl describe node --namespace default
+Name: kind-control-plane
+... 생략
+Capacity: 
+    cpu:                4
+    memory:             8040056Ki
+... 생략
+Non-terminated Pods:         (8 in total)
+  Namespace                  Name                                        CPU Requests  CPU Limits  Memory Requests  Memory Limits
+  ---------                  ----                                        ------------  ----------  ---------------  -------------
+  default                    hello-server-54577b6988-4wzx8              500m (12%)    10m (0%)   2Gi (12%)        5Gi (65%) <-- (2)
+  kube-system                coredns-558bd4d5db-5k9s4                   100m (2%)     0 (0%)       70Mi (0%)       170Mi (2%)
+  
+// 실습에 사용중인 kind 클러스터에는 하나의 노드에 컨트롤 플레인도 포함하고 있어서 kube-apiserver 등이 같은 노드에서 돌고있습니다.
+// (2) 하나가 전체 메모리의 65%를 사용하고 있습니다. 이대로는 나머지 두개의 pod를 실행할 수 없습니다.
+// 다음 명령으로 Deployment에 지정한 메모리의 크기를 확인하겠습니다.
+$ kubectl get deployment hello-server -o=jsonpath='{.spec.template.spec.containers[0].resources.requests}' --namespace default
+{"cpu":"10m", "memory":"5Gi"}
+
+// 적절한 리소스 요청값은 실제 사용량이나 성능 테스트 결과 등을 기반으로 조율해야하지만, 여기서는 단순 메모리의 requests와 limits를 63Mi로 변경하여 해결하였습니다.
+$ kubectl edit deployment hello-server --namespace default
+medata.resources.limits.memory, medata.resources.requests.memory의 값을 64Mi로 수정
+deployment.apps/hello-server edited
+
+$ kubectl get deployment hello-server -o=jsonpath='{.spec.template.spec.containers[0].resources.requests}' --namespace default
+{"cpu":"10m", "memory":"64Mi"}
+
+// 정상 동작
+$ kubectl get pod --namespace default
+NAME                            READY   STATUS             RESTARTS   AGE
+hello-server-54577b6988-4wzx8   1/1     Running   0          8s
+hello-server-54577b6988-7p94h   1/1     Running   0          8s
+hello-server-54577b6988-nnkq5   1/1     Running   0          8s
+
+// 실습 정리
+$ kubectl delete --filename deployment-resource-handson.yaml --namespace default
+```
+
+이번에는 메모리 누수를 발생시켜 OOM을 발생시켜 보겠습니다.
+```bash
+$ kubectl apply --filename deployment-memory-leak.yaml --namespace default
+deployment.apps/memory-leak created
+
+// pod가 Running인지 확인합니다.
+$ kubectl get pod --namespace default
+NAME                           READY   STATUS    RESTARTS   AGE
+memory-leak-7c9f4b6c7b-xtj8k  1/1     Running   0          10s
+memory-leak-asdaq4b6ca-xtg23  1/1     Running   0          10s
+memory-leak-aaabq211aq-ag12t  1/1     Running   0          10s
+
+// 다음으로 port-forward를 실행합니다.
+$ kubectl port-forward hello-server 8080:8080 --namespace default
+
+// 별도의 터미널을 엽니다.
+$ curl localhost:8080
+
+// 기다려도 결과가 반환되지 않습니다.
+$ kubectl get pod --watch --namespace default
+NAME                           READY   STATUS             RESTARTS   AGE
+memory-leak-7c9f4b6c7b-xtj8k  1/1     Running             0          10s
+memory-leak-asdaq4b6ca-xtg23  1/1     Running             0          10s
+memory-leak-aaabq211aq-ag12t  1/1     Running             0          10s
+memory-leak-aaabq211aq-bh23q  1/1     OOMKilled           0          10s
+```
