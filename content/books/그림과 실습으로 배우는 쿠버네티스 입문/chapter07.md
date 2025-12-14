@@ -973,10 +973,40 @@ $ kubectl port-forward hello-server 8080:8080 --namespace default
 $ curl localhost:8080
 
 // 기다려도 결과가 반환되지 않습니다.
+// 15초 정도 지나면 OOMKilled가 표시됩니다.
 $ kubectl get pod --watch --namespace default
 NAME                           READY   STATUS             RESTARTS   AGE
 memory-leak-7c9f4b6c7b-xtj8k  1/1     Running             0          10s
 memory-leak-asdaq4b6ca-xtg23  1/1     Running             0          10s
 memory-leak-aaabq211aq-ag12t  1/1     Running             0          10s
-memory-leak-aaabq211aq-bh23q  1/1     OOMKilled           0          10s
+memory-leak-aaabq211aq-bh23q  0/1     OOMKilled           0          10s
+
+// OOMKilled가 발생한 pod의 이름을 복사하여 내용을 살펴봅니다.
+$ kubectl describe pod memory-leak-aaabq211aq-bh23q --namespace default
+Name:         memory-leak-aaabq211aq-bh23q
+... 생략
+Events:
+  Type     Reason     Age                From               Message
+  ----     ------     ----               ----               -------
+  Normal   Scheduled  2m10s              default-scheduler  Successfully assigned default/memory-leak-aaabq211aq-bh23q to kind-control-plane
+  Normal   Pulled     2m5s               kubelet            Successfully pulled image "blux2/memory-leak:1.0" in 1.234s (3.456s including waiting). Image size: 1234567 bytes.
+  Normal   Created    2m4s               kubelet            Created container memory-leak
+  Normal   Started    2m4s               kubelet            Started container memory-leak
+
+// Events에 출력된 내용으로는 OOMKilled되었는지 여부를 알 수 없습니다. Readiness probe와 Liveness probe가 설정되어 있어서 '타임아웃'이라고만 표시되어 정확한 이유를 알 수 없습니다.
+// 이때 확인해야하는 것이 Last State와 Reason입니다. JSON 형식으로 반환되기 때문에, jq를 설치하면 더 쉽게 확인할 수 있습니다.
+$ kubectl get pod memory-leak-aaabq211aq-bh23q -output=jsonpath="{.status.containerStatuses[0].lastState}" --namespace default | jq .
+{
+  "terminated": {
+    "exitCode": 137,
+    "reason": "OOMKilled",
+    "startedAt": "2025-12-11T12:45:10Z",
+    "finishedAt": "2025-12-11T12:45:25Z",
+    "containerID": "containerd://abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+  }
+}
+
+// 타이밍에 따라 아무것도 출력되지 않을 수도 있습니다.
+// lastState가 terminated이고 reason에 OOMKilled라고 출력되었습니다. 해당 이미지 태그를 낮은 버전인 1.8로 업데이트하면 해결됩니다.
+$ kubectl delete --filename deployment-memory-leak.yaml --namespace default
 ```
