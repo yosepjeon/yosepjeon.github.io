@@ -1010,3 +1010,545 @@ $ kubectl get pod memory-leak-aaabq211aq-bh23q -output=jsonpath="{.status.contai
 // lastState가 terminated이고 reason에 OOMKilled라고 출력되었습니다. 해당 이미지 태그를 낮은 버전인 1.8로 업데이트하면 해결됩니다.
 $ kubectl delete --filename deployment-memory-leak.yaml --namespace default
 ```
+
+## 7.3 pod 스케줄링의 편리한 기능 이해하기
+### 7.3.1 Node selector로 노드 지정하기
+Node selector는 특정 노드에만 스케줄링하기 위해 사용합니다. 노드에 설정된 레이블을 바탕으로 제어됩니다.
+Node selector는 Pod를 특정 레이블을 가진 노드에만 스케줄링하도록 지정하는 가장 간단한 방법입니다.  
+노드에 레이블을 부여하고, Pod의 nodeSelector 필드에서 해당 레이블을 지정하면 됩니다.
+### Node Selector의 동작 원리
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Node Selector 동작 원리                              │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                           Kubernetes Cluster                        │   │
+│   │                                                                     │   │
+│   │    Pod 생성 요청                                                      │   │
+│   │    nodeSelector:                                                    │   │
+│   │      disktype: ssd                                                  │   │
+│   │         │                                                           │   │
+│   │         ▼                                                           │   │
+│   │    ┌──────────────┐                                                 │   │
+│   │    │  Scheduler   │                                                 │   │
+│   │    │              │                                                 │   │
+│   │    │ "disktype:   │                                                 │   │
+│   │    │  ssd 레이블이 │                                                  │   │
+│   │    │  있는 노드    │                                                  │   │
+│   │    │  찾기"        │                                                 │   │
+│   │    └──────┬───────┘                                                 │   │
+│   │           │                                                         │   │
+│   │           ▼                                                         │   │
+│   │    ┌──────────────────────────────────────────────────────────┐     │   │
+│   │    │                    노드 검색                               │     │   │
+│   │    │                                                          │     │   │
+│   │    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │     │   │
+│   │    │  │   Node 1    │  │   Node 2    │  │   Node 3    │       │     │   │
+│   │    │  │             │  │             │  │             │       │     │   │
+│   │    │  │ disktype:   │  │ disktype:   │  │ (레이블 없음)  │       │     │   │
+│   │    │  │   ssd ✓     │  │   hdd ✗     │  │     ✗       │       │     │   │
+│   │    │  └──────┬──────┘  └─────────────┘  └─────────────┘       │     │   │
+│   │    │         │                                                │     │   │
+│   │    └─────────┼────────────────────────────────────────────────┘     │   │
+│   │              │                                                      │   │
+│   │              ▼                                                      │   │
+│   │    ┌─────────────────┐                                              │   │
+│   │    │     Node 1      │                                              │   │
+│   │    │  ┌───────────┐  │                                              │   │
+│   │    │  │    Pod    │  │  ← Pod가 Node 1에 스케줄링됨                     │   │
+│   │    │  └───────────┘  │                                              │   │
+│   │    │  disktype: ssd  │                                              │   │
+│   │    └─────────────────┘                                              │   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Node Selector 사용 방법
+
+**1단계: 노드에 레이블 추가**
+
+```bash
+# 노드 목록 확인
+$ kubectl get nodes
+NAME                 STATUS   ROLES           AGE   VERSION
+kind-control-plane   Ready    control-plane   10d   v1.27.3
+
+# 노드에 레이블 추가
+$ kubectl label nodes kind-control-plane disktype=ssd
+node/kind-control-plane labeled
+
+# 레이블 확인
+$ kubectl get nodes --show-labels
+NAME                 STATUS   ROLES           AGE   VERSION   LABELS
+kind-control-plane   Ready    control-plane   10d   v1.27.3   disktype=ssd,...
+
+# 특정 레이블로 노드 필터링
+$ kubectl get nodes -l disktype=ssd
+NAME                 STATUS   ROLES           AGE   VERSION
+kind-control-plane   Ready    control-plane   10d   v1.27.3
+```
+
+**2단계: Pod에 nodeSelector 지정**
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-ssd
+  labels:
+    app: nginx
+spec:
+  nodeSelector:           # nodeSelector 지정
+    disktype: ssd         # disktype=ssd 레이블이 있는 노드에만 스케줄링
+  containers:
+  - name: nginx
+    image: nginx:1.25
+    ports:
+    - containerPort: 80
+```
+
+### Node Selector 실습
+
+```bash
+# Pod 생성
+$ kubectl apply -f pod-node-selector.yaml
+pod/nginx-ssd created
+
+# Pod가 올바른 노드에 스케줄링되었는지 확인
+$ kubectl get pod nginx-ssd -o wide
+NAME        READY   STATUS    RESTARTS   AGE   IP           NODE
+nginx-ssd   1/1     Running   0          10s   10.244.0.5   kind-control-plane
+
+# Pod 상세 정보에서 nodeSelector 확인
+$ kubectl describe pod nginx-ssd | grep -A 2 "Node-Selectors"
+Node-Selectors:  disktype=ssd
+Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                 node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+```
+
+### 매칭되는 노드가 없는 경우
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Node Selector 매칭 실패 시                                │
+│                                                                             │
+│   Pod 생성 요청                                                               │
+│   nodeSelector:                                                             │
+│     gpu: nvidia          ← gpu=nvidia 레이블을 가진 노드 요청                  │
+│         │                                                                   │
+│         ▼                                                                   │
+│   ┌──────────────┐                                                          │
+│   │  Scheduler   │                                                          │
+│   └──────┬───────┘                                                          │
+│          │                                                                  │
+│          ▼                                                                  │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                         │
+│   │   Node 1    │  │   Node 2    │  │   Node 3    │                         │
+│   │ disktype:   │  │ disktype:   │  │ env: prod   │                         │
+│   │   ssd ✗     │  │   hdd ✗     │  │     ✗       │                         │
+│   └─────────────┘  └─────────────┘  └─────────────┘                         │
+│          │                                                                  │
+│          ▼                                                                  │
+│   ╔═════════════════════════════════════════════════════════════════════╗   │
+│   ║                        스케줄링 실패!                                 ║   │
+│   ║                                                                     ║   │
+│   ║   Pod Status: Pending                                               ║   │
+│   ║   Reason: 0/3 nodes are available: 3 node(s) didn't match           ║   │
+│   ║           Pod's node affinity/selector.                             ║   │
+│   ╚═════════════════════════════════════════════════════════════════════╝   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+```bash
+# 매칭되는 노드가 없을 때 Pod 상태
+$ kubectl get pod nginx-gpu
+NAME        READY   STATUS    RESTARTS   AGE
+nginx-gpu   0/1     Pending   0          30s
+
+# 원인 확인
+$ kubectl describe pod nginx-gpu
+...
+Events:
+  Type     Reason            Age   From               Message
+  ----     ------            ----  ----               -------
+  Warning  FailedScheduling  30s   default-scheduler  0/1 nodes are available:
+           1 node(s) didn't match Pod's node affinity/selector.
+```
+
+### Node Selector 사용 사례
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Node Selector 사용 사례                               │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  1. 하드웨어 요구사항                                                    │  │
+│  │     • GPU가 있는 노드에 머신러닝 워크로드 배치                              │  │
+│  │     • SSD가 있는 노드에 데이터베이스 배치                                  │  │
+│  │     • 고성능 CPU 노드에 연산 집약적 작업 배치                              │  │
+│  │                                                                       │  │
+│  │     nodeSelector:                                                     │  │
+│  │       gpu: nvidia                                                     │  │
+│  │       disktype: ssd                                                   │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  2. 환경 분리                                                          │  │
+│  │     • 프로덕션 워크로드를 프로덕션 노드에만 배치                             │  │
+│  │     • 개발/테스트 워크로드를 개발 노드에 배치                               │  │
+│  │                                                                       │  │
+│  │     nodeSelector:                                                     │  │
+│  │       env: production                                                 │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  3. 지역/존 기반 배치                                                   │  │
+│  │     • 특정 데이터센터나 가용 영역에 Pod 배치                               │  │
+│  │     • 지연 시간에 민감한 서비스를 특정 리전에 배치                           │  │
+│  │                                                                       │  │
+│  │     nodeSelector:                                                     │  │
+│  │       topology.kubernetes.io/zone: ap-northeast-2a                    │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## 7.3.2 Affinity와 Anti-affinity로 pod 스케줄링을 유연하게 지정하기
+Affinity는 '유사성'이나 '밀접한 관계'라는 뜻의 단어입니다.
+노드와 pod, 또는 pod끼리 '가까워지도록' 또는 '가까워지지 않도록' 스케줄링을 제약합니다.
+
+### Affinity의 종류
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Affinity의 종류                                     │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                                                                     │   │
+│   │   ┌─────────────────────┐         ┌─────────────────────┐           │   │
+│   │   │   Node Affinity     │         │   Pod Affinity      │           │   │
+│   │   │                     │         │   Pod Anti-Affinity │           │   │
+│   │   │  Pod를 특정 노드에     │         │                     │           │   │
+│   │   │  배치하도록 제어        │         │  Pod를 다른 Pod와     │           │   │
+│   │   │                     │         │  가깝게/멀게 배치       │           │   │
+│   │   │  (Node Selector의    │         │                    │           │   │
+│   │   │   확장 버전)          │         │                     │           │   │
+│   │   └─────────────────────┘         └─────────────────────┘           │   │
+│   │              │                              │                       │   │
+│   │              ▼                              ▼                       │   │
+│   │   ┌─────────────────────┐         ┌─────────────────────┐           │   │
+│   │   │  노드의 레이블 기반      │         │  Pod의 레이블 기반     │           │   │
+│   │   └─────────────────────┘         └─────────────────────┘           │   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Node Affinity
+
+Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식을 지원합니다.
+
+#### Node Affinity의 두 가지 유형
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       Node Affinity 유형                                     │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  1. requiredDuringSchedulingIgnoredDuringExecution (필수)              │  │
+│  │                                                                       │  │
+│  │     • 조건을 반드시 만족하는 노드에만 스케줄링                                  │  │
+│  │     • 조건을 만족하는 노드가 없으면 Pod는 Pending 상태                         │  │
+│  │     • Node Selector와 유사하지만 더 풍부한 표현식 지원                        │  │
+│  │                                                                       │  │
+│  │     ┌─────────┐                      ┌─────────┐                      │  │
+│  │     │   Pod   │ ─── 반드시 배치 ───▶ │  Node   │  (조건 만족)              │  │
+│  │     └─────────┘                      └─────────┘                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  2. preferredDuringSchedulingIgnoredDuringExecution (선호)             │  │
+│  │                                                                       │  │
+│  │     • 조건을 만족하는 노드를 선호하지만, 필수는 아님                             │  │
+│  │     • 조건을 만족하는 노드가 없어도 다른 노드에 스케줄링 가능                      │  │
+│  │     • weight(1-100)로 선호도 강도를 지정                                   │  │
+│  │                                                                       │  │
+│  │     ┌─────────┐                      ┌─────────┐                      │  │
+│  │     │   Pod   │ ─── 가능하면 배치 ──▶ │  Node   │  (조건 만족)             │  │
+│  │     └─────────┘         │            └─────────┘                      │  │
+│  │                         │            ┌─────────┐                      │  │
+│  │                         └─ 아니면 ──▶ │  Node   │  (다른 노드)            │  │
+│  │                                      └─────────┘                      │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ※ IgnoredDuringExecution: 이미 실행 중인 Pod는 노드 레이블이 변경되어도              │
+│     퇴거(eviction)되지 않음                                                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Node Affinity 연산자
+
+| 연산자 | 설명 | 예시 |
+|--------|------|------|
+| **In** | 값이 목록에 포함됨 | `values: [ssd, nvme]` |
+| **NotIn** | 값이 목록에 포함되지 않음 | `values: [hdd]` |
+| **Exists** | 키가 존재함 (값 무관) | `key: gpu` |
+| **DoesNotExist** | 키가 존재하지 않음 | `key: spot-instance` |
+| **Gt** | 값이 지정값보다 큼 | `values: ["4"]` (CPU > 4) |
+| **Lt** | 값이 지정값보다 작음 | `values: ["8"]` (Memory < 8) |
+
+#### Node Affinity YAML 예시
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: with-node-affinity
+spec:
+  affinity:
+    nodeAffinity:
+      # 필수 조건: disktype이 ssd 또는 nvme인 노드
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: disktype
+            operator: In
+            values:
+            - ssd
+            - nvme
+      # 선호 조건: zone이 ap-northeast-2a인 노드 선호 (가중치 80)
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 80
+        preference:
+          matchExpressions:
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values:
+            - ap-northeast-2a
+  containers:
+  - name: nginx
+    image: nginx:1.25
+```
+
+### Pod Affinity와 Pod Anti-Affinity
+
+Pod Affinity는 이미 실행 중인 다른 Pod와의 관계를 기반으로 스케줄링합니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Pod Affinity vs Pod Anti-Affinity                         │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         Pod Affinity                                  │  │
+│  │                    "특정 Pod와 같은 곳에 배치"                             │  │
+│  │                                                                       │  │
+│  │         Node 1                           Node 2                       │  │
+│  │   ┌─────────────────┐              ┌─────────────────┐                │  │
+│  │   │  ┌───────────┐  │              │                 │                │  │
+│  │   │  │  Pod A    │  │              │                 │                │  │
+│  │   │  │ app:cache │  │              │                 │                │  │
+│  │   │  └───────────┘  │              │                 │                │  │
+│  │   │  ┌───────────┐  │              │                 │                │  │
+│  │   │  │  Pod B    │◀─┼── 같은 노드에   │                 │                │  │
+│  │   │  │ app:web   │  │   배치됨       │                 │                │  │
+│  │   │  └───────────┘  │              │                 │                │  │
+│  │   └─────────────────┘              └─────────────────┘                │  │
+│  │                                                                       │  │
+│  │   사용 사례: 캐시 서버와 웹 서버를 같은 노드에 배치하여 지연 시간 최소화              │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                       Pod Anti-Affinity                               │  │
+│  │                   "특정 Pod와 다른 곳에 배치"                              │  │
+│  │                                                                       │  │
+│  │         Node 1                           Node 2                       │  │
+│  │   ┌─────────────────┐              ┌─────────────────┐                │  │
+│  │   │  ┌───────────┐  │              │  ┌───────────┐  │                │  │
+│  │   │  │  Pod A    │  │     서로      │  │  Pod B    │  │                │  │
+│  │   │  │ app:web   │  │◀── 다른 ───▶  │  │ app:web   │  │                │  │
+│  │   │  │ replica 1 │  │   노드에       │  │ replica 2 │  │                │  │
+│  │   │  └───────────┘  │   배치됨       │  └───────────┘  │                │  │
+│  │   │                 │              │                 │                │  │
+│  │   └─────────────────┘              └─────────────────┘                │  │
+│  │                                                                       │  │
+│  │   사용 사례: 고가용성을 위해 같은 애플리케이션의 replica를 다른 노드에 분산           │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### topologyKey 이해하기
+
+Pod Affinity/Anti-Affinity에서 topologyKey는 "같은 곳"의 범위를 정의합니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          topologyKey 개념                                    │
+│                                                                             │
+│   topologyKey는 노드의 레이블 키를 지정하여 "같은 위치"의 범위를 결정합니다.               │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  topologyKey: kubernetes.io/hostname                                │   │
+│   │  → 같은 노드 (노드 단위)                                                │   │
+│   │                                                                     │   │
+│   │   Node 1              Node 2              Node 3                    │   │
+│   │  ┌──────┐            ┌──────┐            ┌──────┐                   │   │
+│   │  │ Pod  │            │      │            │      │                   │   │
+│   │  │  A   │  같은 노드   │      │            │      │                   │   │
+│   │  │ Pod  │◀───────────│      │            │      │                   │   │
+│   │  │  B   │            │      │            │      │                   │   │
+│   │  └──────┘            └──────┘            └──────┘                   │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  topologyKey: topology.kubernetes.io/zone                           │   │
+│   │  → 같은 가용 영역 (Zone 단위)                                            │   │
+│   │                                                                     │   │
+│   │   ┌─── Zone A ───┐         ┌─── Zone B ───┐                         │   │
+│   │   │ Node1  Node2 │         │ Node3  Node4 │                         │   │
+│   │   │ ┌──┐  ┌──┐   │  같은    │ ┌──┐  ┌──┐   │                         │   │
+│   │   │ │A │  │B │   │◀─Zone── │ │  │  │  │   │                         │   │
+│   │   │ └──┘  └──┘   │         │ └──┘  └──┘   │                         │   │
+│   │   └──────────────┘         └──────────────┘                         │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Pod Anti-Affinity YAML 예시
+
+고가용성을 위해 같은 애플리케이션의 Pod를 다른 노드에 분산 배치하는 예시입니다.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      affinity:
+        podAntiAffinity:
+          # 필수: 같은 app=web Pod가 있는 노드에는 배치하지 않음
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - web
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nginx
+        image: nginx:1.25
+```
+
+#### Pod Affinity YAML 예시
+
+캐시 서버와 웹 서버를 같은 노드에 배치하는 예시입니다.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-server
+  labels:
+    app: web
+spec:
+  affinity:
+    podAffinity:
+      # 선호: app=cache Pod가 있는 노드에 배치 선호
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - cache
+          topologyKey: kubernetes.io/hostname
+  containers:
+  - name: nginx
+    image: nginx:1.25
+```
+
+### Affinity 사용 사례 정리
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Affinity 사용 사례                                    │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  Node Affinity 사용 사례                                                │  │
+│  │                                                                       │  │
+│  │  • GPU 워크로드를 GPU 노드에 배치                                           │  │
+│  │  • SSD가 필요한 DB를 SSD 노드에 배치                                        │  │
+│  │  • 특정 가용 영역에 서비스 배치 (지연 시간 최적화)                               │  │
+│  │  • spot instance 노드 회피 (안정성이 중요한 서비스)                           │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  Pod Affinity 사용 사례                                                 │  │
+│  │                                                                       │  │
+│  │  • 캐시 서버와 웹 서버를 같은 노드에 배치 (네트워크 지연 최소화)                    │  │
+│  │  • 프론트엔드와 백엔드를 같은 Zone에 배치                                      │  │
+│  │  • 자주 통신하는 마이크로서비스를 가깝게 배치                                    │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │  Pod Anti-Affinity 사용 사례                                            │  │
+│  │                                                                       │  │
+│  │  • 같은 서비스의 replica를 다른 노드에 분산 (고가용성)                          │  │
+│  │  • 같은 서비스의 replica를 다른 Zone에 분산 (재해 복구)                        │  │
+│  │  • 리소스를 많이 사용하는 Pod 분산 (리소스 경합 방지)                            │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Node Selector vs Node Affinity 비교
+
+| 특징 | Node Selector | Node Affinity |
+|------|---------------|---------------|
+| **복잡도** | 단순함 | 상대적으로 복잡함 |
+| **연산자** | 동등(=)만 지원 | In, NotIn, Exists, DoesNotExist, Gt, Lt 지원 |
+| **필수/선호** | 필수만 가능 | 필수(required)와 선호(preferred) 모두 가능 |
+| **사용 사례** | 단순한 노드 선택 | 복잡한 조건의 노드 선택 |
+
+### 주의사항
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        ⚠️ Affinity 주의사항                                    │
+│                                                                             │
+│  1. Pod Anti-Affinity의 required 조건은 노드 수보다 replica가 많으면               │
+│     일부 Pod가 Pending 상태가 됨                                                │
+│     → 노드 3개인데 replica 5개면 2개는 스케줄링 불가                                │
+│                                                                             │
+│  2. topologyKey 설정 실수 주의                                                 │
+│     → hostname vs zone에 따라 분산 범위가 크게 달라짐                              │
+│                                                                             │
+│  3. 복잡한 Affinity 규칙은 스케줄링 성능에 영향을 줄 수 있음                           │
+│     → 꼭 필요한 경우에만 사용                                                     │
+│                                                                             │
+│  4. IgnoredDuringExecution의 의미 이해 필요                                     │
+│     → 실행 중인 Pod는 조건이 변해도 퇴거되지 않음                                    │
+│     → 새로운 Pod만 새 조건에 따라 스케줄링됨                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
