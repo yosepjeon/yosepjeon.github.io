@@ -387,7 +387,7 @@ spec:
 │   Container 시작                                                             │
 │        │                                                                    │
 │        ▼                                                                    │
-│   ╔═══════════════════════════════════════════════════════════════════╗    │
+│   ╔═══════════════════════════════════════════════════════════════════╗     │
 │   ║                      Startup Probe 실행 중                          ║    │
 │   ║                                                                   ║    │
 │   ║   • Liveness Probe: ⏸️  비활성화 (대기)                              ║    │
@@ -706,16 +706,16 @@ OOM Killer는 QoS에 따라 pod의 우선순위를 정하고 우선순위가 낮
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         QoS 클래스 우선순위                                    │
+│                         QoS 클래스 우선순위                                     │
 │                                                                             │
-│   높음 ◀────────────────── 우선순위 ──────────────────▶ 낮음                  │
+│   높음 ◀────────────────── 우선순위 ──────────────────▶ 낮음                     │
 │                                                                             │
-│   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                │
-│   │ Guaranteed  │      │  Burstable  │      │ BestEffort  │                │
-│   │             │      │             │      │             │                │
-│   │  가장 마지막에 │      │  두 번째로   │      │  가장 먼저   │                 │
+│   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐                 │
+│   │ Guaranteed  │      │  Burstable  │      │ BestEffort  │                 │
+│   │             │      │             │      │             │                 │
+│   │  가장 마지막에 │      │  두 번째로   │      │  가장 먼저   │                    │
 │   │  OOM Kill   │      │  OOM Kill   │      │  OOM Kill   │                 │
-│   └─────────────┘      └─────────────┘      └─────────────┘                │
+│   └─────────────┘      └─────────────┘      └─────────────┘                 │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -795,14 +795,14 @@ spec:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          QoS 클래스 결정 흐름                                  │
+│                          QoS 클래스 결정 흐름                                   │
 │                                                                             │
 │   Pod 생성                                                                   │
 │      │                                                                      │
 │      ▼                                                                      │
 │   ┌──────────────────────────────────────────┐                              │
-│   │ 모든 컨테이너에 requests와 limits가         │                              │
-│   │ 설정되어 있고, 값이 동일한가?                │                              │
+│   │ 모든 컨테이너에 requests와 limits가           │                              │
+│   │ 설정되어 있고, 값이 동일한가?                   │                              │
 │   └──────────────────┬───────────────────────┘                              │
 │                      │                                                      │
 │          ┌───────────┴───────────┐                                          │
@@ -811,8 +811,8 @@ spec:
 │          │                       │                                          │
 │          ▼                       ▼                                          │
 │   ┌─────────────┐    ┌──────────────────────────────────┐                   │
-│   │ Guaranteed  │    │ 최소 하나의 컨테이너에              │                   │
-│   └─────────────┘    │ requests 또는 limits가 설정되어 있는가? │                   │
+│   │ Guaranteed  │    │ 최소 하나의 컨테이너에                 │                   │
+│   └─────────────┘    │ requests 또는 limits가 설정되어 있는가?│                   │
 │                      └──────────────────┬───────────────┘                   │
 │                                         │                                   │
 │                          ┌──────────────┴──────────────┐                    │
@@ -848,19 +848,19 @@ $ kubectl describe pod <pod-name> | grep "QoS Class"
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │                          OOM Kill 순서                               │   │
 │   │                                                                     │   │
-│   │  1순위    ┌─────────────┐                                           │   │
-│   │  (먼저)   │ BestEffort  │  → 리소스 설정 없음, 가장 먼저 종료            │   │
-│   │          └─────────────┘                                           │   │
+│   │  1순위    ┌─────────────┐                                            │   │
+│   │  (먼저)   │ BestEffort  │  → 리소스 설정 없음, 가장 먼저 종료               │   │
+│   │          └─────────────┘                                            │   │
 │   │              │                                                      │   │
-│   │              ▼  메모리 여전히 부족하면                                  │   │
-│   │  2순위    ┌─────────────┐                                           │   │
-│   │          │  Burstable  │  → requests 초과 사용량이 큰 Pod부터 종료      │   │
-│   │          └─────────────┘                                           │   │
+│   │              ▼  메모리 여전히 부족하면                                   │   │
+│   │  2순위    ┌─────────────┐                                            │   │
+│   │          │  Burstable  │  → requests 초과 사용량이 큰 Pod부터 종료        │   │
+│   │          └─────────────┘                                            │   │
 │   │              │                                                      │   │
-│   │              ▼  메모리 여전히 부족하면                                  │   │
-│   │  3순위    ┌─────────────┐                                           │   │
-│   │  (마지막) │ Guaranteed  │  → 최후의 수단으로만 종료                      │   │
-│   │          └─────────────┘                                           │   │
+│   │              ▼  메모리 여전히 부족하면                                    │   │
+│   │  3순위    ┌─────────────┐                                            │   │
+│   │  (마지막) │ Guaranteed  │  → 최후의 수단으로만 종료                        │   │
+│   │          └─────────────┘                                            │   │
 │   │                                                                     │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
@@ -881,14 +881,14 @@ $ kubectl describe pod <pod-name> | grep "QoS Class"
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           ⚠️ QoS 설정 시 주의사항                               │
 │                                                                             │
-│  1. limits만 설정하면 requests는 자동으로 limits와 동일하게 설정됨                   │
-│     → limits만 설정해도 Guaranteed가 될 수 있음                                 │
+│  1. limits만 설정하면 requests는 자동으로 limits와 동일하게 설정됨                    │
+│     → limits만 설정해도 Guaranteed가 될 수 있음                                   │
 │                                                                             │
-│  2. BestEffort Pod는 노드의 여유 리소스를 모두 사용할 수 있음                       │
-│     → 다른 Pod에 영향을 줄 수 있으므로 프로덕션에서는 권장하지 않음                    │
+│  2. BestEffort Pod는 노드의 여유 리소스를 모두 사용할 수 있음                         │
+│     → 다른 Pod에 영향을 줄 수 있으므로 프로덕션에서는 권장하지 않음                       │
 │                                                                             │
-│  3. Burstable Pod 간의 OOM Kill 순서는 requests 대비 실제 사용량 비율로 결정        │
-│     → requests를 초과한 비율이 높을수록 먼저 종료됨                                │
+│  3. Burstable Pod 간의 OOM Kill 순서는 requests 대비 실제 사용량 비율로 결정         │
+│     → requests를 초과한 비율이 높을수록 먼저 종료됨                                  │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1137,7 +1137,7 @@ Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
 │                                                                             │
 │   Pod 생성 요청                                                               │
 │   nodeSelector:                                                             │
-│     gpu: nvidia          ← gpu=nvidia 레이블을 가진 노드 요청                  │
+│     gpu: nvidia          ← gpu=nvidia 레이블을 가진 노드 요청                     │
 │         │                                                                   │
 │         ▼                                                                   │
 │   ┌──────────────┐                                                          │
@@ -1153,7 +1153,7 @@ Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
 │          │                                                                  │
 │          ▼                                                                  │
 │   ╔═════════════════════════════════════════════════════════════════════╗   │
-│   ║                        스케줄링 실패!                                 ║   │
+│   ║                        스케줄링 실패!                                  ║   │
 │   ║                                                                     ║   │
 │   ║   Pod Status: Pending                                               ║   │
 │   ║   Reason: 0/3 nodes are available: 3 node(s) didn't match           ║   │
@@ -1186,10 +1186,10 @@ Events:
 │                         Node Selector 사용 사례                               │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  1. 하드웨어 요구사항                                                    │  │
-│  │     • GPU가 있는 노드에 머신러닝 워크로드 배치                              │  │
-│  │     • SSD가 있는 노드에 데이터베이스 배치                                  │  │
-│  │     • 고성능 CPU 노드에 연산 집약적 작업 배치                              │  │
+│  │  1. 하드웨어 요구사항                                                      │  │
+│  │     • GPU가 있는 노드에 머신러닝 워크로드 배치                                 │  │
+│  │     • SSD가 있는 노드에 데이터베이스 배치                                     │  │
+│  │     • 고성능 CPU 노드에 연산 집약적 작업 배치                                  │  │
 │  │                                                                       │  │
 │  │     nodeSelector:                                                     │  │
 │  │       gpu: nvidia                                                     │  │
@@ -1197,18 +1197,18 @@ Events:
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  2. 환경 분리                                                          │  │
-│  │     • 프로덕션 워크로드를 프로덕션 노드에만 배치                             │  │
-│  │     • 개발/테스트 워크로드를 개발 노드에 배치                               │  │
+│  │  2. 환경 분리                                                            │  │
+│  │     • 프로덕션 워크로드를 프로덕션 노드에만 배치                                 │  │
+│  │     • 개발/테스트 워크로드를 개발 노드에 배치                                   │  │
 │  │                                                                       │  │
 │  │     nodeSelector:                                                     │  │
 │  │       env: production                                                 │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  3. 지역/존 기반 배치                                                   │  │
-│  │     • 특정 데이터센터나 가용 영역에 Pod 배치                               │  │
-│  │     • 지연 시간에 민감한 서비스를 특정 리전에 배치                           │  │
+│  │  3. 지역/존 기반 배치                                                     │  │
+│  │     • 특정 데이터센터나 가용 영역에 Pod 배치                                   │  │
+│  │     • 지연 시간에 민감한 서비스를 특정 리전에 배치                               │  │
 │  │                                                                       │  │
 │  │     nodeSelector:                                                     │  │
 │  │       topology.kubernetes.io/zone: ap-northeast-2a                    │  │
@@ -1251,7 +1251,11 @@ Affinity는 '유사성'이나 '밀접한 관계'라는 뜻의 단어입니다.
 
 ### Node Affinity
 
-Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식을 지원합니다.
+Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식을 지원합니다.  
+Node selector와 거의 유사하지만, Node selector와 달리 '가능하면 스케줄링한다'는 선택이 가능합니다.  
+
+Node selector는 해당 노드가 존재하지 않으면 pod를 스케줄링 할 수 없기 떄문에 노드 장애에 취약합니다.  
+스케줄링을 제어하면서도 노드 장애에도 대응할 수 있기때문에 반드시 특정 노드에 스케줄링할게 아니면 사용추천!
 
 #### Node Affinity의 두 가지 유형
 
@@ -1267,7 +1271,7 @@ Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식�
 │  │     • Node Selector와 유사하지만 더 풍부한 표현식 지원                        │  │
 │  │                                                                       │  │
 │  │     ┌─────────┐                      ┌─────────┐                      │  │
-│  │     │   Pod   │ ─── 반드시 배치 ───▶ │  Node   │  (조건 만족)              │  │
+│  │     │   Pod   │ ─── 반드시 배치 ───▶    │  Node   │  (조건 만족)           │  │
 │  │     └─────────┘                      └─────────┘                      │  │
 │  │                                                                       │  │
 │  └───────────────────────────────────────────────────────────────────────┘  │
@@ -1276,11 +1280,11 @@ Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식�
 │  │  2. preferredDuringSchedulingIgnoredDuringExecution (선호)             │  │
 │  │                                                                       │  │
 │  │     • 조건을 만족하는 노드를 선호하지만, 필수는 아님                             │  │
-│  │     • 조건을 만족하는 노드가 없어도 다른 노드에 스케줄링 가능                      │  │
+│  │     • 조건을 만족하는 노드가 없어도 적절한 노드에 스케줄링 가능                      │  │
 │  │     • weight(1-100)로 선호도 강도를 지정                                   │  │
 │  │                                                                       │  │
 │  │     ┌─────────┐                      ┌─────────┐                      │  │
-│  │     │   Pod   │ ─── 가능하면 배치 ──▶ │  Node   │  (조건 만족)             │  │
+│  │     │   Pod   │ ─── 가능하면 배치 ──▶   │  Node   │  (조건 만족)            │  │
 │  │     └─────────┘         │            └─────────┘                      │  │
 │  │                         │            ┌─────────┐                      │  │
 │  │                         └─ 아니면 ──▶ │  Node   │  (다른 노드)            │  │
@@ -1292,6 +1296,61 @@ Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식�
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+#### matchExpressions 구조
+
+`matchExpressions`는 Node Affinity에서 노드를 선택하기 위한 조건을 정의하는 핵심 요소입니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         matchExpressions 구조                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  nodeSelectorTerms:           # 여러 Term은 OR 관계                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │ Term 1                                                              │    │
+│  │   matchExpressions:        # 같은 Term 내 조건들은 AND 관계              │    │
+│  │   ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │   │  - key: disktype       # 레이블 키                            │   │    │
+│  │   │    operator: In        # 연산자 (In, NotIn, Exists 등)        │   │    │
+│  │   │    values: [ssd]       # 값 목록                              │   │    │
+│  │   ├─────────────────────────────────────────────────────────────┤   │   │
+│  │   │  - key: zone           # 두 번째 조건 (AND)                    │   │   │
+│  │   │    operator: In                                             │   │   │
+│  │   │    values: [ap-northeast-2a]                                │   │   │
+│  │   └─────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                              OR                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ Term 2                                                              │   │
+│  │   matchExpressions:                                                 │   │
+│  │   ┌─────────────────────────────────────────────────────────────┐   │   │
+│  │   │  - key: node-type                                            │  │   │
+│  │   │    operator: In                                              │  │   │
+│  │   │    values: [high-memory]                                     │  │   │
+│  │   └─────────────────────────────────────────────────────────────┘   │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  위 예시의 논리: (disktype=ssd AND zone=ap-northeast-2a) OR node-type=high-memory │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**matchExpressions 구성 요소:**
+
+| 필드 | 설명 | 필수 여부 |
+|------|------|-----------|
+| **key** | 노드 레이블의 키 이름 | 필수 |
+| **operator** | 비교 연산자 (In, NotIn, Exists, DoesNotExist, Gt, Lt) | 필수 |
+| **values** | 비교할 값 목록 (Exists, DoesNotExist는 생략) | 연산자에 따라 다름 |
+
+**matchExpressions vs matchFields:**
+
+| 구분 | matchExpressions | matchFields |
+|------|------------------|-------------|
+| **대상** | 노드 **레이블** (사용자 정의 가능) | 노드 **필드** (시스템 속성) |
+| **예시 키** | `disktype`, `zone`, `team` | `metadata.name`, `spec.unschedulable` |
+| **용도** | 커스텀 레이블로 노드 분류 | 노드 이름 등 시스템 정보로 선택 |
 
 #### Node Affinity 연산자
 
@@ -1310,40 +1369,33 @@ Node Affinity는 Node Selector의 확장 버전으로, 더 풍부한 표현식�
 apiVersion: v1
 kind: Pod
 metadata:
-  name: with-node-affinity
+  name: node-affinity-pod
 spec:
   affinity:
     nodeAffinity:
-      # 필수 조건: disktype이 ssd 또는 nvme인 노드
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: disktype
-            operator: In
-            values:
-            - ssd
-            - nvme
-      # 선호 조건: zone이 ap-northeast-2a인 노드 선호 (가중치 80)
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 80
-        preference:
-          matchExpressions:
-          - key: topology.kubernetes.io/zone
-            operator: In
-            values:
-            - ap-northeast-2a
+      preferredDuringSchedulingIgnoredDuringExecution: <-- 대응하는 노드가 없어도 스케줄링한다.
+        - weight: 1
+          preference:
+            matchExpressions:
+              - key: disktype <-- 노드에 설정된 키가 disktype이고
+                operator: In
+                values:
+                  - ssd <-- value가 ssd인 노드에 스케줄링하되
   containers:
-  - name: nginx
-    image: nginx:1.25
+    - name: node-affinity-pod
+      image: nginx:1.25.3
 ```
 
 ### Pod Affinity와 Pod Anti-Affinity
 
-Pod Affinity는 이미 실행 중인 다른 Pod와의 관계를 기반으로 스케줄링합니다.
+현재 노드에 스케줄링된 pod의 레이블을 기반으로 스케줄링합니다.  
+자주 사용하는 패턴은 노드의 장애에 대비하여 같은 애플리케이션의 pod를 같은 노드에 배치하지 않도록 규칙을 설정하는 것입니다. 
+Deployment로 pod를 다중화해도 전부 같은 노드에 배치된다면 해당 노드가 장애가 났을 때 서비스 전체가 영향을 받기 때문입니다.이 규칙을 추가함으로써 pod를 여러 노드에 분산 배치할 수 있습니다.  
+다만 최근 등장한 <mark>Topology Spread Constraints</mark>를 사용할 수 있는 경우도 있습니다.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Pod Affinity vs Pod Anti-Affinity                         │
+│                    Pod Affinity vs Pod Anti-Affinity                        │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐  │
 │  │                         Pod Affinity                                  │  │
@@ -1409,7 +1461,7 @@ Pod Affinity/Anti-Affinity에서 topologyKey는 "같은 곳"의 범위를 정의
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
 │   │  topologyKey: topology.kubernetes.io/zone                           │   │
-│   │  → 같은 가용 영역 (Zone 단위)                                            │   │
+│   │  → 같은 가용 영역 (Zone 단위)                                           │   │
 │   │                                                                     │   │
 │   │   ┌─── Zone A ───┐         ┌─── Zone B ───┐                         │   │
 │   │   │ Node1  Node2 │         │ Node3  Node4 │                         │   │
@@ -1427,64 +1479,28 @@ Pod Affinity/Anti-Affinity에서 topologyKey는 "같은 곳"의 범위를 정의
 고가용성을 위해 같은 애플리케이션의 Pod를 다른 노드에 분산 배치하는 예시입니다.
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: web-server
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: web
-  template:
-    metadata:
-      labels:
-        app: web
-    spec:
-      affinity:
-        podAntiAffinity:
-          # 필수: 같은 app=web Pod가 있는 노드에는 배치하지 않음
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - web
-            topologyKey: kubernetes.io/hostname
-      containers:
-      - name: nginx
-        image: nginx:1.25
-```
-
-#### Pod Affinity YAML 예시
-
-캐시 서버와 웹 서버를 같은 노드에 배치하는 예시입니다.
-
-```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: web-server
+  name: pod-anti-affinity
   labels:
-    app: web
+    app: nginx
 spec:
   affinity:
-    podAffinity:
-      # 선호: app=cache Pod가 있는 노드에 배치 선호
+    podAntiAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: app
-              operator: In
-              values:
-              - cache
-          topologyKey: kubernetes.io/hostname
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - nginx
+            topologyKey: kubernetes.io/hostname <-- 같은 노드에 배치되지 않도록 설정 kubernetes.io/zone 으로 설정하면 같은 데이터센터(Zone)에 배치되지 않도록 설정 가능
   containers:
-  - name: nginx
-    image: nginx:1.25
+    - name: nginx
+      image: nginx:1.25.3
 ```
 
 ### Affinity 사용 사례 정리
@@ -1552,3 +1568,6 @@ spec:
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+
+## 7.3.3 pod분산을 위한 Pod Topology Spread Constraints 설정하기
