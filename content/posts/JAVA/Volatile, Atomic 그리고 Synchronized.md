@@ -1,6 +1,6 @@
 +++
 title = "volatile, Atomic 그리고 Synchronized"
-date = "2023-02-04"
+date = "2023-03-11"
 weight = 1
 +++
 
