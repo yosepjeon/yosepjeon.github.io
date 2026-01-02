@@ -1,6 +1,6 @@
 +++
 title = "db에Mysql FOR UPDATE SKIP LOCKED 학습하기 1"
-date = "2025-12-24"
+date = "2024-11-12"
 author = "Yosep"
 tags = ["db", "mysql", "innodb", "locking"]
 description = "MySQL에서 FOR UPDATE SKIP LOCKED가 무엇이고 언제 쓰는지, 워커(consumer) 큐 예제로 정리합니다."
