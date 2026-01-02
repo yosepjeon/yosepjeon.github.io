@@ -1,0 +1,42 @@
+/* 코드 하이라이팅 - 형광 녹색 오버라이드 */
+
+/* 문자열 - 형광 녹색 */
+.highlight .s,
+.highlight .s1,
+.highlight .s2,
+.highlight .sa,
+.highlight .sb,
+.highlight .sc,
+.highlight .sd,
+.highlight .se,
+.highlight .sh,
+.highlight .si,
+.highlight .sx,
+.highlight .sr,
+.highlight .ss,
+.highlight .dl {
+  color: #39ff14 !important;
+}
+
+/* 숫자 - 형광 녹색 */
+.highlight .m,
+.highlight .mb,
+.highlight .mf,
+.highlight .mh,
+.highlight .mi,
+.highlight .mo,
+.highlight .il {
+  color: #39ff14 !important;
+}
+
+/* 상수 (true, false, null) - 형광 녹색 */
+.highlight .kc {
+  color: #39ff14 !important;
+}
+
+/* 코드 블록 배경 - 검정 */
+.highlight,
+.highlight pre,
+.highlight code {
+  background-color: #000000 !important;
+}

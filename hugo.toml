@@ -9,9 +9,12 @@ buildFuture = true
   unsafe = true
 
 [markup.highlight]
+  codeFences = true
+  guessSyntax = true
   lineNos = true
   lineNumbersInTable = true
-  noClasses = false
+  noClasses = true
+  style = "paraiso-dark"
 
 [params]
   contentTypeName = "posts"
