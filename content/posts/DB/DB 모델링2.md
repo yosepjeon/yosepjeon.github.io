@@ -4,7 +4,7 @@ date = "2024-03-27"
 author = "Yosep"
 tags = ["db", "modeling"]
 description = "DB 모델링에 대해 학습 및 정리합니다."
-weight = 3
+weight = 4
 +++
 
 # PK(Primary Key)의 종류와 실무 활용
